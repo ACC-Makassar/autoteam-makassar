@@ -661,37 +661,50 @@ def build_wa_bni_rekap_message(df_bni, nama_sales="Sales"):
         lines.append("")
     return "\n".join(lines).strip()
 
-# Fungsi Memuat Data dari Google Sheets Publik via CSV
-@st.cache_data(ttl=10)
+# Fungsi Memuat Data dari Google Sheets via CSV (dengan fallback endpoint export CSV)
+@st.cache_data(ttl=15)
 def load_data_sheets():
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tracking"
-    try:
-        df = pd.read_csv(url, dtype=str).fillna("")
-        df.columns = [c.strip() for c in df.columns]
+    urls = [
+        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tracking",
+        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&sheet=Tracking",
+        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv",
+    ]
+    df = None
+    last_err = ""
+    for candidate_url in urls:
+        try:
+            temp_df = pd.read_csv(candidate_url, dtype=str).fillna("")
+            temp_df.columns = [c.strip() for c in temp_df.columns]
+            if not temp_df.empty and len(temp_df.columns) > 1:
+                df = temp_df
+                break
+        except Exception as exc:
+            last_err = str(exc)
 
-        if "NAMA_CUST" in df.columns:
-            df = df[df["NAMA_CUST"].str.strip() != ""].copy()
-        elif "Customer" in df.columns:
-            df = df[df["Customer"].str.strip() != ""].copy()
-
-        df["ID"] = df["NOKON"] if "NOKON" in df.columns else df.get("ID", "-")
-        df["Customer"] = df["NAMA_CUST"] if "NAMA_CUST" in df.columns else df.get("Customer", "-")
-        df["Bank_Raw"] = df["BANK_AUTODEBET"] if "BANK_AUTODEBET" in df.columns else df.get("Bank", "")
-        df["Bank"] = df["Bank_Raw"].apply(normalize_bank)
-        df["Sales"] = df["NAME_SO"].str.strip() if "NAME_SO" in df.columns else df.get("Sales", "-")
-        df["Status_Code"] = df["STATUS PENDAFTARAN"].str.upper().str.strip() if "STATUS PENDAFTARAN" in df.columns else ""
-        df["Status"] = df["Status_Code"].apply(map_status_label)
-        df["Keaktifan"] = df["Status_Code"].apply(map_keaktifan_label)
-        df["Alasan Reject"] = df["REASON REJECT"].str.strip() if "REASON REJECT" in df.columns else df.get("Alasan Reject", "")
-        df["Solusi"] = df["Alasan Reject"].apply(get_solusi_reject)
-        return df, True
-    except Exception:
+    if df is None or df.empty:
         fallback = pd.DataFrame([
             {"ID": "REG-001", "Customer": "HENRI", "Bank": "BRI", "Sales": "RESKYANTO PUNDA", "Status_Code": "R", "Status": "Rejected", "Keaktifan": "Aktif", "Alasan Reject": "Phone number is not correct", "Solusi": get_solusi_reject("Phone number is not correct"), "CABANG": "MAKASSAR", "AREA NEW": "Area 5", "Aging": "7"}
         ])
-        return fallback, False
+        return fallback, False, last_err or "Gagal memuat CSV dari Google Sheets."
 
-df_tracking, is_live = load_data_sheets()
+    if "NAMA_CUST" in df.columns:
+        df = df[df["NAMA_CUST"].str.strip() != ""].copy()
+    elif "Customer" in df.columns:
+        df = df[df["Customer"].str.strip() != ""].copy()
+
+    df["ID"] = df["NOKON"] if "NOKON" in df.columns else df.get("ID", "-")
+    df["Customer"] = df["NAMA_CUST"] if "NAMA_CUST" in df.columns else df.get("Customer", "-")
+    df["Bank_Raw"] = df["BANK_AUTODEBET"] if "BANK_AUTODEBET" in df.columns else df.get("Bank", "")
+    df["Bank"] = df["Bank_Raw"].apply(normalize_bank)
+    df["Sales"] = df["NAME_SO"].str.strip() if "NAME_SO" in df.columns else df.get("Sales", "-")
+    df["Status_Code"] = df["STATUS PENDAFTARAN"].str.upper().str.strip() if "STATUS PENDAFTARAN" in df.columns else ""
+    df["Status"] = df["Status_Code"].apply(map_status_label)
+    df["Keaktifan"] = df["Status_Code"].apply(map_keaktifan_label)
+    df["Alasan Reject"] = df["REASON REJECT"].str.strip() if "REASON REJECT" in df.columns else df.get("Alasan Reject", "")
+    df["Solusi"] = df["Alasan Reject"].apply(get_solusi_reject)
+    return df, True, ""
+
+df_tracking, is_live, load_err_msg = load_data_sheets()
 
 if "bni_contacted_keys" not in st.session_state:
     st.session_state.bni_contacted_keys = set()
@@ -746,14 +759,12 @@ def build_sales_leaderboard(df):
     if lb_df.empty:
         return pd.DataFrame(), pd.DataFrame()
 
-    # Top 5: seluruh Sales yang punya data, % Autodebet tertinggi & Rejected (R) paling sedikit
     top5 = lb_df.sort_values(
         by=["% Autodebet", "Rejected (R)", "Approved (A)", "Total Data"],
         ascending=[False, True, False, False]
     ).head(5).copy()
     top5.insert(0, "Rank", range(1, len(top5) + 1))
 
-    # Bottom 5: Sales dengan Rejected (R) terbanyak
     bottom5 = lb_df.sort_values(
         by=["Rejected (R)", "% Autodebet", "Total Data"],
         ascending=[False, True, False]
@@ -1256,11 +1267,13 @@ def main():
 
     elif menu_pilihan == "🔧 Settings":
         st.subheader("🔧 Pengaturan Sistem & Database Google Sheets")
-        st.write("Versi Web: **AUTOTEAM** (Autodebet Team Achievement & Monitoring) v7.7")
+        st.write("Versi Web: **AUTOTEAM** (Autodebet Team Achievement & Monitoring) v7.8")
         if is_live:
             st.success(f"Status: Terhubung Sempurna ke Google Sheets Database Utama (DB_AutoTeam_Makassar — {total_data} Data)")
         else:
             st.warning("Status: Menggunakan mode cadangan sementara. Pastikan akses berbagi Google Sheets diset 'Siapa saja yang memiliki link dapat melihat'.")
+            if load_err_msg:
+                st.caption(f"Detail teknis koneksi: {load_err_msg}")
         
         st.markdown("---")
         st.subheader("Akses Langsung Google Sheets")
