@@ -387,6 +387,7 @@ st.markdown("""
 # Konfigurasi Google Sheets Database Utama (Akun Kantor ACC Makassar)
 SHEET_ID = "1I0yUHqzkhJiAOSJ-6qcb_RLLHmmY89nPOoOUAc8lq_s"
 SHEET_EDIT_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit"
+SHEET_PUB_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR9fVo9i6uzSOLLU1mNbaNWIBg54Tx9Cvo-YXI54aSIH06s5ReJqHD6XW_ExPvzffzjWTU_oE15aHBg/pub?gid=0&single=true&output=csv"
 
 # Daftar Resmi Sales ACC Cabang Makassar
 DAFTAR_SALES_MAKASSAR = [
@@ -661,13 +662,13 @@ def build_wa_bni_rekap_message(df_bni, nama_sales="Sales"):
         lines.append("")
     return "\n".join(lines).strip()
 
-# Fungsi Memuat Data dari Google Sheets via CSV (dengan fallback endpoint export CSV)
+# Fungsi Memuat Data dari Google Sheets via CSV (prioritas link Publish to Web CSV)
 @st.cache_data(ttl=15)
 def load_data_sheets():
     urls = [
-        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tracking",
+        SHEET_PUB_CSV_URL,
         f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&sheet=Tracking",
-        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv",
+        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tracking",
     ]
     df = None
     last_err = ""
@@ -1267,7 +1268,7 @@ def main():
 
     elif menu_pilihan == "🔧 Settings":
         st.subheader("🔧 Pengaturan Sistem & Database Google Sheets")
-        st.write("Versi Web: **AUTOTEAM** (Autodebet Team Achievement & Monitoring) v7.8")
+        st.write("Versi Web: **AUTOTEAM** (Autodebet Team Achievement & Monitoring) v7.9")
         if is_live:
             st.success(f"Status: Terhubung Sempurna ke Google Sheets Database Utama (DB_AutoTeam_Makassar — {total_data} Data)")
         else:
