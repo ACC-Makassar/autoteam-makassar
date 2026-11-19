@@ -384,6 +384,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Konfigurasi Google Sheets Database Utama (Akun Kantor ACC Makassar)
+SHEET_ID = "1I0yUHqzkhJiAOSJ-6qcb_RLLHmmY89nPOoOUAc8lq_s"
+SHEET_EDIT_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit"
+
 # Daftar Resmi Sales ACC Cabang Makassar
 DAFTAR_SALES_MAKASSAR = [
     "RESKYANTO PUNDA", "NURUL AZIZAH", "NUR RAHMADANI", "FITRIYANTI MUIS",
@@ -660,8 +664,7 @@ def build_wa_bni_rekap_message(df_bni, nama_sales="Sales"):
 # Fungsi Memuat Data dari Google Sheets Publik via CSV
 @st.cache_data(ttl=10)
 def load_data_sheets():
-    sheet_id = "1eGeosnjBbMnAK0I0pbIcGtTBxlOYTN4eUgtz9X5CM2M"
-    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=Tracking"
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tracking"
     try:
         df = pd.read_csv(url, dtype=str).fillna("")
         df.columns = [c.strip() for c in df.columns]
@@ -1160,7 +1163,7 @@ def main():
             df_view = df_view[mask_nama | mask_id]
 
         st.info("Akses Database Pusat: Untuk mengelola, menambah, atau menghapus data secara langsung, silakan buka Google Sheets utama.")
-        st.markdown('<a href="https://docs.google.com/spreadsheets/d/1eGeosnjBbMnAK0I0pbIcGtTBxlOYTN4eUgtz9X5CM2M/edit" target="_blank"><button style="background-color:#10b981; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer;">Buka Google Sheets Database Utama</button></a>', unsafe_allow_html=True)
+        st.markdown(f'<a href="{SHEET_EDIT_URL}" target="_blank"><button style="background-color:#10b981; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer;">Buka Google Sheets Database Utama</button></a>', unsafe_allow_html=True)
 
         st.markdown(f"### Daftar Tanggungan Rejected ({len(df_view)} Data)")
         
@@ -1253,16 +1256,16 @@ def main():
 
     elif menu_pilihan == "🔧 Settings":
         st.subheader("🔧 Pengaturan Sistem & Database Google Sheets")
-        st.write("Versi Web: **AUTOTEAM** (Autodebet Team Achievement & Monitoring) v7.6")
+        st.write("Versi Web: **AUTOTEAM** (Autodebet Team Achievement & Monitoring) v7.7")
         if is_live:
-            st.success(f"Status: Terhubung Sempurna ke Google Sheets Database Utama (DB_AutoMonitor_Makassar — {total_data} Data)")
+            st.success(f"Status: Terhubung Sempurna ke Google Sheets Database Utama (DB_AutoTeam_Makassar — {total_data} Data)")
         else:
             st.warning("Status: Menggunakan mode cadangan sementara. Pastikan akses berbagi Google Sheets diset 'Siapa saja yang memiliki link dapat melihat'.")
         
         st.markdown("---")
         st.subheader("Akses Langsung Google Sheets")
         st.markdown("Anda dapat langsung mengelola, menambah, atau menghapus data Sales melalui tautan berikut:")
-        st.markdown('<a href="https://docs.google.com/spreadsheets/d/1eGeosnjBbMnAK0I0pbIcGtTBxlOYTN4eUgtz9X5CM2M/edit" target="_blank"><button style="background-color:#0044b3; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer;">Buka Google Sheets Utama</button></a>', unsafe_allow_html=True)
+        st.markdown(f'<a href="{SHEET_EDIT_URL}" target="_blank"><button style="background-color:#0044b3; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer;">Buka Google Sheets Utama</button></a>', unsafe_allow_html=True)
         
         st.markdown("---")
         st.subheader("Download Backup Data (Excel)")
